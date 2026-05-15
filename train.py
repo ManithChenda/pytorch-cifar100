@@ -4,6 +4,8 @@
 """ train network using pytorch
 
 author baiyu
+
+Edited by ManithChenda
 """
 
 import os
@@ -127,7 +129,10 @@ if __name__ == '__main__':
     parser.add_argument('-resume', action='store_true', default=False, help='resume training')
     args = parser.parse_args()
 
-    net = get_network(args)
+    # Employ all the available GPUs
+    if torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs")
+        net = torch.nn.DataParallel(net)
 
     #data preprocessing:
     cifar100_training_loader = get_training_dataloader(
@@ -200,6 +205,7 @@ if __name__ == '__main__':
 
         resume_epoch = last_epoch(os.path.join(settings.CHECKPOINT_PATH, args.net, recent_folder))
 
+    start = time.time()
 
     for epoch in range(1, settings.EPOCH + 1):
         if epoch > args.warm:
@@ -224,5 +230,8 @@ if __name__ == '__main__':
             weights_path = checkpoint_path.format(net=args.net, epoch=epoch, type='regular')
             print('saving weights file to {}'.format(weights_path))
             torch.save(net.state_dict(), weights_path)
+
+    finish = time.time()
+    print(f"Total training time: {finish-start}s")
 
     writer.close()
