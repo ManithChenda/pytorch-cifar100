@@ -46,7 +46,8 @@ def train(epoch):
 
         n_iter = (epoch - 1) * len(cifar100_training_loader) + batch_index + 1
 
-        last_layer = list(net.children())[-1]
+        base_net = net.module if isinstance(net, torch.nn.DataParallel) else net
+        last_layer = list(base_net.children())[-1]
         for name, para in last_layer.named_parameters():
             if 'weight' in name:
                 writer.add_scalar('LastLayerGradients/grad_norm2_weights', para.grad.norm(), n_iter)
@@ -179,7 +180,8 @@ if __name__ == '__main__':
     input_tensor = torch.Tensor(1, 3, 32, 32)
     if args.gpu:
         input_tensor = input_tensor.cuda()
-    writer.add_graph(net, input_tensor)
+    graph_net = net.module if isinstance(net, torch.nn.DataParallel) else net
+    writer.add_graph(graph_net, input_tensor)
 
     #create checkpoint folder to save model
     if not os.path.exists(checkpoint_path):
@@ -210,7 +212,7 @@ if __name__ == '__main__':
 
     for epoch in range(1, settings.EPOCH + 1):
         if epoch > args.warm:
-            train_scheduler.step(epoch)
+            train_scheduler.step()
 
         if args.resume:
             if epoch <= resume_epoch:
@@ -223,14 +225,16 @@ if __name__ == '__main__':
         if epoch > settings.MILESTONES[1] and best_acc < acc:
             weights_path = checkpoint_path.format(net=args.net, epoch=epoch, type='best')
             print('saving weights file to {}'.format(weights_path))
-            torch.save(net.state_dict(), weights_path)
+            save_net = net.module if isinstance(net, torch.nn.DataParallel) else net
+            torch.save(save_net.state_dict(), weights_path)
             best_acc = acc
             continue
 
         if not epoch % settings.SAVE_EPOCH:
             weights_path = checkpoint_path.format(net=args.net, epoch=epoch, type='regular')
             print('saving weights file to {}'.format(weights_path))
-            torch.save(net.state_dict(), weights_path)
+            save_net = net.module if isinstance(net, torch.nn.DataParallel) else net
+            torch.save(save_net.state_dict(), weights_path)
 
     finish = time.time()
     print(f"Total training time: {finish-start}s")
