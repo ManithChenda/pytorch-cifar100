@@ -130,6 +130,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Employ all the available GPUs
+    net = get_network(args)
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs")
         net = torch.nn.DataParallel(net)
